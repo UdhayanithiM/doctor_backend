@@ -3,40 +3,42 @@ header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
 require_once 'config.php';
 
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 $conn = new mysqli($servername, $username, $password, $dbname);
 
-// Get parameters
-$sender_id = $_GET['sender_id'] ?? '';
-$receiver_id = $_GET['receiver_id'] ?? '';
-$referral_id = $_GET['referral_id'] ?? '';
-
-$messages = [];
-
-if (!empty($referral_id)) {
-    // SCENARIO 1: Chat specific to a Student Referral (Doctor <-> Counselor)
-    // We fetch ALL messages attached to this referral_id
-    $sql = "SELECT * FROM messages WHERE referral_id = '$referral_id' ORDER BY timestamp ASC";
-} 
-elseif (!empty($sender_id) && !empty($receiver_id)) {
-    // SCENARIO 2: Direct Chat (Old Logic - Backup)
-    $sql = "SELECT * FROM messages 
-            WHERE (sender_id = '$sender_id' AND receiver_id = '$receiver_id') 
-            OR (sender_id = '$receiver_id' AND receiver_id = '$sender_id') 
-            ORDER BY timestamp ASC";
-} else {
-    // Invalid Request
-    echo json_encode([]);
+if ($conn->connect_error) {
+    echo json_encode(["error" => "Connection failed: " . $conn->connect_error]);
     exit;
 }
 
-$result = $conn->query($sql);
+$referral_id = $_GET['referral_id'] ?? '';
 
-if ($result) {
-    while($row = $result->fetch_assoc()) {
-        $messages[] = $row;
-    }
+if (empty($referral_id)) {
+    echo json_encode(["error" => "No referral_id provided"]);
+    exit;
+}
+
+// Use prepared statement to prevent SQL injection
+$stmt = $conn->prepare("SELECT id, sender_id, receiver_id, message, referral_id, timestamp FROM messages WHERE referral_id = ? ORDER BY timestamp ASC");
+
+if (!$stmt) {
+    echo json_encode(["error" => "Prepare failed: " . $conn->error]);
+    exit;
+}
+
+$stmt->bind_param("s", $referral_id);
+$stmt->execute();
+$result = $stmt->get_result();
+
+$messages = [];
+while ($row = $result->fetch_assoc()) {
+    $messages[] = $row;
 }
 
 echo json_encode($messages);
+$stmt->close();
 $conn->close();
 ?>

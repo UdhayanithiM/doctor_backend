@@ -13,7 +13,8 @@ if ($conn->connect_error) {
 
 $postData = json_decode(file_get_contents("php://input"), true);
 
-$counselor_id = isset($postData['counselor_id']) ? intval($postData['counselor_id']) : 0; // <-- NEW
+// ✅ FIX: Ensure counselor_id is captured
+$counselor_id = isset($postData['counselor_id']) ? intval($postData['counselor_id']) : 0;
 $name = isset($postData['name']) ? trim($postData['name']) : '';
 $age = isset($postData['age']) ? intval($postData['age']) : 0;
 $standard = isset($postData['standard']) ? trim($postData['standard']) : '';
@@ -31,6 +32,7 @@ if (empty($name) || empty($age)) {
 
 // Update Query to include counselor_id
 $stmt = $conn->prepare("INSERT INTO referrals (name, age, standard, address, reason, behavior, academic, disciplinary, special_need, counselor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+// s=string, i=integer
 $stmt->bind_param("sisssssssi", $name, $age, $standard, $address, $reason, $behavior, $academic, $disciplinary, $special_need, $counselor_id);
 
 if ($stmt->execute()) {
